@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # ──────────────────────────────────────────
+  # DATABASE: PostgreSQL
+  # ──────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: aisystems-postgres
+    environment:
+      POSTGRES_USER: ai_admin
+      POSTGRES_PASSWORD: secure_password_123
+      POSTGRES_DB: aisystems_prod
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_admin -d aisystems_prod"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aisystems-network
+
+  # ──────────────────────────────────────────
+  # CACHE & QUEUE: Redis
+  # ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aisystems-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    command: redis-server --appendonly yes
+    networks:
+      - aisystems-network
+
+  # ──────────────────────────────────────────
+  # BACKEND: Node.js API
+  # ──────────────────────────────────────────
+  api:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: aisystems-api
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://ai_admin:secure_password_123@postgres:5432/aisystems_prod?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - aisystems-network
+
+  # ──────────────────────────────────────────
+  # FRONTEND: Nginx / React
+  # ──────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: aisystems-web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - aisystems-network
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  aisystems-network:
+    driver: bridge
