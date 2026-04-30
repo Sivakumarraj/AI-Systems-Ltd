@@ -18,9 +18,20 @@ async function request(endpoint, options = {}) {
     headers: { 'Content-Type': 'application/json', ...authHeaders(), ...options.headers },
     ...options,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Something went wrong');
-  return data;
+
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+    return data;
+  } else {
+    // If not JSON, it might be an HTML error page (like a 404 or Render error)
+    if (!res.ok) {
+       throw new Error(`Critical Error: The server returned an HTML page instead of JSON. This usually means your VITE_API_URL is incorrect or the backend is offline. (Status: ${res.status})`);
+    }
+    const text = await res.text();
+    throw new Error('Server returned non-JSON response');
+  }
 }
 
 // Auth
