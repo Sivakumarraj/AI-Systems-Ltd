@@ -1,4 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+let BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+if (!BASE_URL.endsWith('/api')) {
+  BASE_URL = BASE_URL.replace(/\/$/, '') + '/api';
+}
+const API_URL = BASE_URL;
 
 function getToken() {
   return localStorage.getItem('aisystems_token');

@@ -13,7 +13,17 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174'], credentials: true }));
+const whitelist = ['http://localhost:5173', 'http://localhost:5174', 'https://ai-systems-ltd.vercel.app'];
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || whitelist.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // ──────────────────────────────────────────
